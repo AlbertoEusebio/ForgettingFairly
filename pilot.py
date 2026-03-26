@@ -103,7 +103,7 @@ def main():
     torch.save({
         "model_state": model.state_dict(),
         "optimizer_state": optimizer.state_dict(),
-        "metrics": metrics_before,
+        "metrics": metrics_test_after_t1,
         "epoch": config.EPOCHS,
     }, ckpt_path)
     print(f"[pilot] Checkpoint saved → {ckpt_path}")
