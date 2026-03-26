@@ -103,7 +103,16 @@ def get_task_splits(metadata_path: str = config.METADATA_PATH):
 
     Only mel/nv classes are kept. Rows with unknown sex are dropped.
     """
-    df = pd.read_csv(metadata_path)
+    df_base     = pd.read_csv(metadata_path)
+    df_official = pd.read_csv(OFFICIAL_META)[["image_id", "dataset"]]
+    df = df_base.merge(df_official, on="image_id", how="left")
+
+    missing_labels = df["dataset"].isna().sum()
+    if missing_labels > 0:
+        print(f"[data] WARNING: {missing_labels} images have no dataset label — dropping")
+        df = df.dropna(subset=["dataset"])
+
+    print("[data] Dataset distribution:\n", df["dataset"].value_counts())
 
     # ── Sanity-check column names ──────────────────────────────
     required = {"image_id", "dx", "sex", config.SOURCE_COLUMN}
@@ -170,6 +179,12 @@ def get_task_splits(metadata_path: str = config.METADATA_PATH):
     return t1_train, t1_val, t2_train, t2_val
 
 
+OFFICIAL_META = (
+    "/kaggle/input/datasets/albertoeusebio/"
+    "ham10000-metadata-csv/HAM10000_metadata.csv"
+)
+
+
 def get_task_splits_with_holdout(metadata_path: str = config.METADATA_PATH):
     """
     Like get_task_splits() but first carves out a global held-out test set
@@ -177,7 +192,18 @@ def get_task_splits_with_holdout(metadata_path: str = config.METADATA_PATH):
 
     Returns: t1_train, t1_val, t2_train, t2_val, test_df
     """
-    df = pd.read_csv(metadata_path)
+    # kmader repack has images but lacks 'dataset'; merge in that column
+    # from the official CSV which has vidir_modern / rosendahl / msk labels.
+    df_base     = pd.read_csv(metadata_path)
+    df_official = pd.read_csv(OFFICIAL_META)[["image_id", "dataset"]]
+    df = df_base.merge(df_official, on="image_id", how="left")
+
+    missing_labels = df["dataset"].isna().sum()
+    if missing_labels > 0:
+        print(f"[data] WARNING: {missing_labels} images have no dataset label — dropping")
+        df = df.dropna(subset=["dataset"])
+
+    print("[data] Dataset distribution:\n", df["dataset"].value_counts())
 
     required = {"image_id", "dx", "sex", config.SOURCE_COLUMN}
     missing  = required - set(df.columns)

@@ -19,10 +19,10 @@ CHECKPOINT_DIR = "./checkpoints"
 RESULTS_DIR    = "./results"
 
 # ── Dataset ──────────────────────────────────────────────────
-# Sex-based domain split
-TASK1_SOURCE  = "female"
-TASK2_SOURCE  = "male"
-SOURCE_COLUMN = "sex"
+# Geographic domain split (Vienna vs Queensland)
+TASK1_SOURCE  = "vidir_modern"   # Vienna, Austria
+TASK2_SOURCE  = "rosendahl"      # Queensland, Australia
+SOURCE_COLUMN = "dataset"
 
 # Binary classification: melanoma (1) vs nevus (0)
 CLASSES       = ["nv", "mel"]
