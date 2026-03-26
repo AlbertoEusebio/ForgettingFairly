@@ -105,9 +105,6 @@ def get_task_splits(metadata_path: str = config.METADATA_PATH):
     """
     df = pd.read_csv(metadata_path)
 
-    # ── Synthesise age-group column ────────────────────────────
-    df["_age_group"] = (df["age"] >= 50).map({True: "older", False: "young"})
-
     # ── Sanity-check column names ──────────────────────────────
     required = {"image_id", "dx", "sex", config.SOURCE_COLUMN}
     missing  = required - set(df.columns)
@@ -119,7 +116,8 @@ def get_task_splits(metadata_path: str = config.METADATA_PATH):
 
     # ── Filter ────────────────────────────────────────────────
     df = df[df["dx"].isin(config.CLASSES)].copy()
-    df = df[df["sex"].isin(["male", "female"])].copy()  # drop unknowns
+    # Rows with unknown sex will not match either task split and are
+    # implicitly excluded; no pre-filter needed here.
 
     print(f"[data] Total usable samples: {len(df)}")
     print(f"[data] Class distribution:\n{df['dx'].value_counts()}")
@@ -134,10 +132,16 @@ def get_task_splits(metadata_path: str = config.METADATA_PATH):
             f"Available sources: {df[config.SOURCE_COLUMN].unique().tolist()}"
         )
 
-    t1_train, t1_val = train_test_split(
-        t1, test_size=config.VAL_FRAC,
-        stratify=t1["dx"], random_state=config.RANDOM_SEED
-    )
+    try:
+        t1_train, t1_val = train_test_split(
+            t1, test_size=config.VAL_FRAC,
+            stratify=t1["dx"], random_state=config.RANDOM_SEED
+        )
+    except ValueError:
+        t1_train, t1_val = train_test_split(
+            t1, test_size=config.VAL_FRAC,
+            stratify=None, random_state=config.RANDOM_SEED
+        )
 
     # ── Task 2: follow_up ─────────────────────────────────────
     t2 = df[df[config.SOURCE_COLUMN] == config.TASK2_SOURCE].copy()
@@ -147,10 +151,16 @@ def get_task_splits(metadata_path: str = config.METADATA_PATH):
             f"Available sources: {df[config.SOURCE_COLUMN].unique().tolist()}"
         )
 
-    t2_train, t2_val = train_test_split(
-        t2, test_size=config.VAL_FRAC,
-        stratify=t2["dx"], random_state=config.RANDOM_SEED
-    )
+    try:
+        t2_train, t2_val = train_test_split(
+            t2, test_size=config.VAL_FRAC,
+            stratify=t2["dx"], random_state=config.RANDOM_SEED
+        )
+    except ValueError:
+        t2_train, t2_val = train_test_split(
+            t2, test_size=config.VAL_FRAC,
+            stratify=None, random_state=config.RANDOM_SEED
+        )
 
     _print_split_stats("Task 1 train", t1_train)
     _print_split_stats("Task 1 val  ", t1_val)

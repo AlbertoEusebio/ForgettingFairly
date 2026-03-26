@@ -19,10 +19,10 @@ CHECKPOINT_DIR = "./checkpoints"
 RESULTS_DIR    = "./results"
 
 # ── Dataset ──────────────────────────────────────────────────
-# Age-based domain split — both groups have mel/nv samples
-TASK1_SOURCE  = "young"        # age < 50
-TASK2_SOURCE  = "older"        # age >= 50
-SOURCE_COLUMN = "_age_group"   # synthetic column, created in data.py
+# Sex-based domain split
+TASK1_SOURCE  = "female"
+TASK2_SOURCE  = "male"
+SOURCE_COLUMN = "sex"
 
 # Binary classification: melanoma (1) vs nevus (0)
 CLASSES       = ["nv", "mel"]
