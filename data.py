@@ -106,11 +106,7 @@ def get_task_splits(metadata_path: str = config.METADATA_PATH):
     df = pd.read_csv(metadata_path)
 
     # ── Sanity-check column names ──────────────────────────────
-    # The Kaggle HAM10000 CSV uses 'dataset' for the source column
-    if "dataset" in df.columns and "datasource" not in df.columns:
-        df = df.rename(columns={"dataset": "datasource"})
-
-    required = {"image_id", "dx", "sex", "datasource"}
+    required = {"image_id", "dx", "sex", config.SOURCE_COLUMN}
     missing  = required - set(df.columns)
     if missing:
         raise ValueError(
@@ -125,14 +121,14 @@ def get_task_splits(metadata_path: str = config.METADATA_PATH):
     print(f"[data] Total usable samples: {len(df)}")
     print(f"[data] Class distribution:\n{df['dx'].value_counts()}")
     print(f"[data] Sex distribution:\n{df['sex'].value_counts()}")
-    print(f"[data] Source distribution:\n{df['datasource'].value_counts()}")
+    print(f"[data] Source distribution:\n{df[config.SOURCE_COLUMN].value_counts()}")
 
-    # ── Task 1: ViDIR ─────────────────────────────────────────
-    t1 = df[df["datasource"] == config.TASK1_SOURCE].copy()
+    # ── Task 1: histo ─────────────────────────────────────────
+    t1 = df[df[config.SOURCE_COLUMN] == config.TASK1_SOURCE].copy()
     if len(t1) == 0:
         raise ValueError(
             f"No samples found for Task 1 source '{config.TASK1_SOURCE}'.\n"
-            f"Available sources: {df['datasource'].unique().tolist()}"
+            f"Available sources: {df[config.SOURCE_COLUMN].unique().tolist()}"
         )
 
     t1_train, t1_val = train_test_split(
@@ -140,12 +136,12 @@ def get_task_splits(metadata_path: str = config.METADATA_PATH):
         stratify=t1["dx"], random_state=config.RANDOM_SEED
     )
 
-    # ── Task 2: Rosendahl / QIMR ──────────────────────────────
-    t2 = df[df["datasource"] == config.TASK2_SOURCE].copy()
+    # ── Task 2: follow_up ─────────────────────────────────────
+    t2 = df[df[config.SOURCE_COLUMN] == config.TASK2_SOURCE].copy()
     if len(t2) == 0:
         raise ValueError(
             f"No samples found for Task 2 source '{config.TASK2_SOURCE}'.\n"
-            f"Available sources: {df['datasource'].unique().tolist()}"
+            f"Available sources: {df[config.SOURCE_COLUMN].unique().tolist()}"
         )
 
     t2_train, t2_val = train_test_split(

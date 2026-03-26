@@ -20,8 +20,9 @@ RESULTS_DIR    = "./results"
 
 # ── Dataset ──────────────────────────────────────────────────
 # HAM10000 source tags that define Task 1 and Task 2
-TASK1_SOURCE = "vidir_modern"    # ViDIR Vienna – larger, Task 1
-TASK2_SOURCE = "rosendahl"       # QIMR Queensland – Task 2
+TASK1_SOURCE  = "histo"       # histopathology confirmed
+TASK2_SOURCE  = "follow_up"   # follow-up confirmed
+SOURCE_COLUMN = "dx_type"     # column used to split tasks
 
 # Binary classification: melanoma (1) vs nevus (0)
 CLASSES       = ["nv", "mel"]
