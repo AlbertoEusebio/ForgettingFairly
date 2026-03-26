@@ -77,8 +77,8 @@ class HAM10000Dataset(Dataset):
         # HAM10000 images live in one or two folders; try both
         path = os.path.join(self.img_dir, f"{row['image_id']}.jpg")
         if not os.path.exists(path):
-            # Some Kaggle kernels unzip into subfolder _part1 / _part2
-            for part in ["HAM10000_images_part1", "HAM10000_images_part2"]:
+            # HAM10000 on Kaggle uses HAM10000_images_part_1 / _part_2
+            for part in ["HAM10000_images_part_1", "HAM10000_images_part_2"]:
                 candidate = os.path.join(
                     os.path.dirname(self.img_dir), part, f"{row['image_id']}.jpg"
                 )
