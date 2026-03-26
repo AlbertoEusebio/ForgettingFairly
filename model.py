@@ -33,12 +33,29 @@ def get_model(num_classes: int = 2) -> nn.Module:
         if "state_dict" in state:
             state = state["state_dict"]
 
-        # Strip 'module.' prefix from DataParallel checkpoints
-        state = {k.replace("module.", ""): v for k, v in state.items()}
+        # Remap backbone.N.* keys → standard torchvision layer names,
+        # strip 'module.' prefix, and drop the original FC head
+        def _remap(state):
+            PREFIX = {
+                "backbone.0.": "conv1.",
+                "backbone.1.": "bn1.",
+                "backbone.4.": "layer1.",
+                "backbone.5.": "layer2.",
+                "backbone.6.": "layer3.",
+                "backbone.7.": "layer4.",
+            }
+            out = {}
+            for k, v in state.items():
+                k = k.replace("module.", "")
+                for old, new in PREFIX.items():
+                    if k.startswith(old):
+                        k = new + k[len(old):]
+                        break
+                if not k.startswith("fc."):
+                    out[k] = v
+            return out
 
-        # Exclude the original FC layer (different num_classes)
-        state = {k: v for k, v in state.items()
-                 if not k.startswith("fc.")}
+        state = _remap(state)
 
         missing, unexpected = model.load_state_dict(state, strict=False)
         print(f"[model] Loaded RadImageNet weights from {weights_path}")

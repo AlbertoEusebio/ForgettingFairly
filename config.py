@@ -19,10 +19,10 @@ CHECKPOINT_DIR = "./checkpoints"
 RESULTS_DIR    = "./results"
 
 # ── Dataset ──────────────────────────────────────────────────
-# HAM10000 source tags that define Task 1 and Task 2
-TASK1_SOURCE  = "histo"       # histopathology confirmed
-TASK2_SOURCE  = "follow_up"   # follow-up confirmed
-SOURCE_COLUMN = "dx_type"     # column used to split tasks
+# Age-based domain split — both groups have mel/nv samples
+TASK1_SOURCE  = "young"        # age < 50
+TASK2_SOURCE  = "older"        # age >= 50
+SOURCE_COLUMN = "_age_group"   # synthetic column, created in data.py
 
 # Binary classification: melanoma (1) vs nevus (0)
 CLASSES       = ["nv", "mel"]

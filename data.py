@@ -105,6 +105,9 @@ def get_task_splits(metadata_path: str = config.METADATA_PATH):
     """
     df = pd.read_csv(metadata_path)
 
+    # ── Synthesise age-group column ────────────────────────────
+    df["_age_group"] = (df["age"] >= 50).map({True: "older", False: "young"})
+
     # ── Sanity-check column names ──────────────────────────────
     required = {"image_id", "dx", "sex", config.SOURCE_COLUMN}
     missing  = required - set(df.columns)
