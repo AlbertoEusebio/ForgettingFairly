@@ -170,6 +170,86 @@ def get_task_splits(metadata_path: str = config.METADATA_PATH):
     return t1_train, t1_val, t2_train, t2_val
 
 
+def get_task_splits_with_holdout(metadata_path: str = config.METADATA_PATH):
+    """
+    Like get_task_splits() but first carves out a global held-out test set
+    (15%, stratified jointly by dx and sex) before task splitting.
+
+    Returns: t1_train, t1_val, t2_train, t2_val, test_df
+    """
+    df = pd.read_csv(metadata_path)
+
+    required = {"image_id", "dx", "sex", config.SOURCE_COLUMN}
+    missing  = required - set(df.columns)
+    if missing:
+        raise ValueError(
+            f"Metadata CSV is missing columns: {missing}\n"
+            f"Found columns: {list(df.columns)}"
+        )
+
+    df = df[df["dx"].isin(config.CLASSES)].copy()
+    df = df[df["sex"].isin(["male", "female"])].copy()
+
+    print(f"[data] Total usable samples: {len(df)}")
+    print(f"[data] Class distribution:\n{df['dx'].value_counts()}")
+    print(f"[data] Sex distribution:\n{df['sex'].value_counts()}")
+
+    # ── Global holdout: 15%, stratified by dx AND sex ──────────
+    TEST_FRAC = 0.15
+    test_parts = []
+    for _, grp in df.groupby(["dx", "sex"]):
+        n = max(1, int(round(len(grp) * TEST_FRAC)))
+        test_parts.append(grp.sample(n, random_state=config.RANDOM_SEED))
+    test_df   = pd.concat(test_parts)
+    remaining = df.drop(test_df.index)
+
+    _print_split_stats("Global test ", test_df)
+
+    # ── Task splits on remaining 85% ───────────────────────────
+    t1 = remaining[remaining[config.SOURCE_COLUMN] == config.TASK1_SOURCE].copy()
+    if len(t1) == 0:
+        raise ValueError(
+            f"No samples found for Task 1 source '{config.TASK1_SOURCE}'.\n"
+            f"Available sources: {remaining[config.SOURCE_COLUMN].unique().tolist()}"
+        )
+
+    try:
+        t1_train, t1_val = train_test_split(
+            t1, test_size=config.VAL_FRAC,
+            stratify=t1["dx"], random_state=config.RANDOM_SEED
+        )
+    except ValueError:
+        t1_train, t1_val = train_test_split(
+            t1, test_size=config.VAL_FRAC,
+            stratify=None, random_state=config.RANDOM_SEED
+        )
+
+    t2 = remaining[remaining[config.SOURCE_COLUMN] == config.TASK2_SOURCE].copy()
+    if len(t2) == 0:
+        raise ValueError(
+            f"No samples found for Task 2 source '{config.TASK2_SOURCE}'.\n"
+            f"Available sources: {remaining[config.SOURCE_COLUMN].unique().tolist()}"
+        )
+
+    try:
+        t2_train, t2_val = train_test_split(
+            t2, test_size=config.VAL_FRAC,
+            stratify=t2["dx"], random_state=config.RANDOM_SEED
+        )
+    except ValueError:
+        t2_train, t2_val = train_test_split(
+            t2, test_size=config.VAL_FRAC,
+            stratify=None, random_state=config.RANDOM_SEED
+        )
+
+    _print_split_stats("Task 1 train", t1_train)
+    _print_split_stats("Task 1 val  ", t1_val)
+    _print_split_stats("Task 2 train", t2_train)
+    _print_split_stats("Task 2 val  ", t2_val)
+
+    return t1_train, t1_val, t2_train, t2_val, test_df
+
+
 def _print_split_stats(name: str, df: pd.DataFrame):
     print(f"\n[data] {name}: n={len(df)}")
     print(f"       mel={( df['dx']=='mel').sum()}  "

@@ -14,7 +14,7 @@ import time
 import torch
 
 import config
-from data import get_task_splits, make_loader
+from data import get_task_splits_with_holdout, make_loader
 from evaluate import evaluate_fairness, print_delta_report
 from model import get_model, get_trainable_params
 from train import train_one_epoch
@@ -58,12 +58,14 @@ def main():
 
     # ── Data ─────────────────────────────────────────────────
     print("\n[pilot] Loading data splits...")
-    t1_train_df, t1_val_df, t2_train_df, t2_val_df = get_task_splits()
+    t1_train_df, t1_val_df, t2_train_df, t2_val_df, test_df = \
+        get_task_splits_with_holdout()
 
     t1_train_loader = make_loader(t1_train_df, config.IMG_DIR, train=True)
     t1_val_loader   = make_loader(t1_val_df,   config.IMG_DIR, train=False)
     t2_train_loader = make_loader(t2_train_df, config.IMG_DIR, train=True)
     t2_val_loader   = make_loader(t2_val_df,   config.IMG_DIR, train=False)
+    test_loader     = make_loader(test_df,      config.IMG_DIR, train=False)
 
     # ── Model ─────────────────────────────────────────────────
     print("\n[pilot] Building model...")
@@ -88,10 +90,13 @@ def main():
 
     print(f"\n[pilot] Task 1 training done in {time.time()-t0:.1f}s")
 
-    # Evaluate on Task 1 val – this is the BEFORE snapshot
-    print("\n[pilot] Evaluating on Task 1 val (before forgetting)...")
-    metrics_before = evaluate_fairness(model, t1_val_loader, device,
-                                       split_name="T1 val | after T1")
+    # Evaluate on Task 1 val and global test – BEFORE snapshot
+    print("\n[pilot] Evaluating on Task 1 val (after T1 training)...")
+    metrics_t1val_after_t1 = evaluate_fairness(model, t1_val_loader, device,
+                                               split_name="T1 val | after T1")
+    print("\n[pilot] Evaluating on global test set (after T1 training)...")
+    metrics_test_after_t1 = evaluate_fairness(model, test_loader, device,
+                                              split_name="Test | after T1")
 
     # Save checkpoint
     ckpt_path = os.path.join(config.CHECKPOINT_DIR, "after_task1.pt")
@@ -123,33 +128,40 @@ def main():
 
     print(f"\n[pilot] Task 2 training done in {time.time()-t0:.1f}s")
 
-    # Evaluate on Task 1 val again – this is the AFTER snapshot
-    # Key: same val set as before; we're measuring forgetting on Task 1
-    print("\n[pilot] Evaluating on Task 1 val (after forgetting)...")
-    metrics_after = evaluate_fairness(model, t1_val_loader, device,
-                                      split_name="T1 val | after T2")
+    # Evaluate on Task 1 val and global test – AFTER snapshot
+    print("\n[pilot] Evaluating on Task 1 val (after T2 training)...")
+    metrics_t1val_after_t2 = evaluate_fairness(model, t1_val_loader, device,
+                                               split_name="T1 val | after T2")
+    print("\n[pilot] Evaluating on global test set (after T2 training)...")
+    metrics_test_after_t2 = evaluate_fairness(model, test_loader, device,
+                                              split_name="Test | after T2")
 
     # Also evaluate on Task 2 val to confirm learning happened
     print("\n[pilot] Evaluating on Task 2 val (plasticity check)...")
-    metrics_t2 = evaluate_fairness(model, t2_val_loader, device,
-                                   split_name="T2 val | after T2")
+    metrics_t2val = evaluate_fairness(model, t2_val_loader, device,
+                                      split_name="T2 val | after T2")
 
-    # ── Core result ───────────────────────────────────────────
-    print_delta_report(metrics_before, metrics_after, task_label="Task 2")
+    # ── Core result: forgetting on the mixed-sex test set ─────
+    print_delta_report(metrics_test_after_t1, metrics_test_after_t2,
+                       task_label="Task 2")
 
     # ── Save results ──────────────────────────────────────────
     results = {
         "config": {
-            "epochs":      config.EPOCHS,
-            "batch_size":  config.BATCH_SIZE,
-            "lr":          config.LR,
-            "task1_source": config.TASK1_SOURCE,
-            "task2_source": config.TASK2_SOURCE,
+            "epochs":          config.EPOCHS,
+            "batch_size":      config.BATCH_SIZE,
+            "lr":              config.LR,
+            "task1_source":    config.TASK1_SOURCE,
+            "task2_source":    config.TASK2_SOURCE,
             "freeze_backbone": config.FREEZE_BACKBONE,
         },
-        "metrics_after_task1":  metrics_before,
-        "metrics_after_task2":  metrics_after,
-        "metrics_task2_val":    metrics_t2,
+        # Task-specific val sets (single-sex; for per-task performance tracking)
+        "t1val_after_task1":  metrics_t1val_after_t1,
+        "t1val_after_task2":  metrics_t1val_after_t2,
+        "t2val_after_task2":  metrics_t2val,
+        # Mixed-sex global test set (used for fairness / forgetting comparisons)
+        "test_after_task1":   metrics_test_after_t1,
+        "test_after_task2":   metrics_test_after_t2,
         "training_history": {
             "task1": t1_history,
             "task2": t2_history,
